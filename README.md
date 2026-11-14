@@ -13,7 +13,7 @@ Implementation:
 * Add **PooledScrollRectController/PooledScrollRectGridController** component to your **ScrollRect**
 * Assign your view prefab in PooledScrollRectController's **Template** property and set the initial **PoolCapacity** 
 * (**ExternalViewPort** and **DataProvider** properties are optional)
-* Populate your scroll list at runtime by using PooledScrollRectController's **Initialize/Add** methods
+* Populate your scroll list at runtime by using PooledScrollRectController's **Initialize/Add/AddRange** methods (batch operations like **AddRange**, **InsertRange**, **RemoveRange**, **RemoveAll**, and manual **UpdateView** are also supported)
 
 ```
 [Serializable]

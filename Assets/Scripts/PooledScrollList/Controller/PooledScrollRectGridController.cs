@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -35,7 +35,7 @@ namespace PooledScrollList.Controller
 
         protected override void UpdateContent()
         {
-            var linesCount = TotalElementsCount % _constraintCount > 0 ? TotalElementsCount / _constraintCount + 1 : TotalElementsCount / _constraintCount;
+            var linesCount = _constraintCount > 0 ? (TotalElementsCount % _constraintCount > 0 ? TotalElementsCount / _constraintCount + 1 : TotalElementsCount / _constraintCount) : 0;
             AdjustContentSize(ElementSize * linesCount);
 
             var scrollAreaSize = ExternalViewPort != null ? GetScrollAreaSize(ExternalViewPort) : GetScrollAreaSize(ScrollRect.viewport);
@@ -43,16 +43,14 @@ namespace PooledScrollList.Controller
             var elementsCulledAbove = Mathf.Clamp(Mathf.FloorToInt(GetScrollRectNormalizedPosition() * (TotalElementsCount - elementsVisibleInScrollArea)), 0,
                 Mathf.Clamp(TotalElementsCount - (elementsVisibleInScrollArea + _constraintCount), 0, int.MaxValue));
 
-            if (elementsCulledAbove != TotalElementsCount - (elementsVisibleInScrollArea + _constraintCount))
+            if (elementsCulledAbove != TotalElementsCount - (elementsVisibleInScrollArea + _constraintCount) && _constraintCount > 0)
             {
                 elementsCulledAbove -= elementsCulledAbove % _constraintCount;
             }
 
-            AdjustSpaceElement(elementsCulledAbove);
-
             var requiredElementsInList = Mathf.Min(elementsVisibleInScrollArea + _constraintCount, TotalElementsCount);
 
-            if (ActiveElements.Count != requiredElementsInList)
+            if (ActiveElements.Count != requiredElementsInList || LastElementsCulledAbove == -1 || Mathf.Abs(elementsCulledAbove - LastElementsCulledAbove) >= requiredElementsInList)
             {
                 InitializeElements(requiredElementsInList, elementsCulledAbove);
             }
@@ -60,6 +58,8 @@ namespace PooledScrollList.Controller
             {
                 ReorientElement(elementsCulledAbove > LastElementsCulledAbove ? ReorientMethod.TopToBottom : ReorientMethod.BottomToTop, elementsCulledAbove);
             }
+
+            AdjustSpaceElement(elementsCulledAbove);
 
             LastElementsCulledAbove = elementsCulledAbove;
         }
@@ -98,26 +98,34 @@ namespace PooledScrollList.Controller
 
             if (reorientMethod == ReorientMethod.TopToBottom)
             {
-                for (var i = 0; i < count; i++)
+                for (var i = 0; i < count && ActiveElements.Count > 1; i++)
                 {
                     var top = ActiveElements[0];
                     ActiveElements.RemoveAt(0);
                     ActiveElements.Add(top);
 
                     top.transform.SetSiblingIndex(ActiveElements[ActiveElements.Count - 2].transform.GetSiblingIndex() + 1);
-                    top.Data = Data[elementsCulledAbove + (i + 1 - count) + ActiveElements.Count - 1];
+                    var dataIndex = elementsCulledAbove + (i + 1 - count) + ActiveElements.Count - 1;
+                    if (dataIndex >= 0 && dataIndex < Data.Count)
+                    {
+                        top.Data = Data[dataIndex];
+                    }
                 }
             }
             else
             {
-                for (var i = 0; i < count; i++)
+                for (var i = 0; i < count && ActiveElements.Count > 1; i++)
                 {
                     var bottom = ActiveElements[ActiveElements.Count - 1];
                     ActiveElements.RemoveAt(ActiveElements.Count - 1);
                     ActiveElements.Insert(0, bottom);
 
                     bottom.transform.SetSiblingIndex(ActiveElements[1].transform.GetSiblingIndex());
-                    bottom.Data = Data[elementsCulledAbove - (i + 1 - count)];
+                    var dataIndex = elementsCulledAbove - (i + 1 - count);
+                    if (dataIndex >= 0 && dataIndex < Data.Count)
+                    {
+                        bottom.Data = Data[dataIndex];
+                    }
                 }
             }
         }

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace PooledScrollList.Controller
@@ -24,7 +24,9 @@ namespace PooledScrollList.Controller
             }
 
             _spaceElement = CreateSpaceElement(ScrollRect, 0f);
+            _spaceElement.ignoreLayout = true;
             _spaceElement.transform.SetParent(ScrollRect.content.transform, false);
+            _spaceElement.transform.SetSiblingIndex(0);
         }
 
         protected override void UpdateContent()
@@ -36,11 +38,9 @@ namespace PooledScrollList.Controller
             var elementsCulledAbove = Mathf.Clamp(Mathf.FloorToInt(GetScrollRectNormalizedPosition() * (TotalElementsCount - elementsVisibleInScrollArea)), 0,
                 Mathf.Clamp(TotalElementsCount - (elementsVisibleInScrollArea + 1), 0, int.MaxValue));
 
-            AdjustSpaceElement(elementsCulledAbove * ElementSize);
-
             var requiredElementsInList = Mathf.Min(elementsVisibleInScrollArea + 1, TotalElementsCount);
 
-            if (ActiveElements.Count != requiredElementsInList)
+            if (ActiveElements.Count != requiredElementsInList || LastElementsCulledAbove == -1 || Mathf.Abs(elementsCulledAbove - LastElementsCulledAbove) > 1)
             {
                 InitializeElements(requiredElementsInList, elementsCulledAbove);
             }
@@ -48,6 +48,8 @@ namespace PooledScrollList.Controller
             {
                 ReorientElement(elementsCulledAbove > LastElementsCulledAbove ? ReorientMethod.TopToBottom : ReorientMethod.BottomToTop, elementsCulledAbove);
             }
+
+            AdjustSpaceElement(elementsCulledAbove * ElementSize);
 
             LastElementsCulledAbove = elementsCulledAbove;
         }
@@ -57,6 +59,7 @@ namespace PooledScrollList.Controller
             if (size <= 0)
             {
                 _spaceElement.ignoreLayout = true;
+                size = 0f;
             }
             else
             {
@@ -67,10 +70,12 @@ namespace PooledScrollList.Controller
             if (ScrollRect.vertical)
             {
                 _spaceElement.minHeight = size;
+                _spaceElement.preferredHeight = size;
             }
             else
             {
                 _spaceElement.minWidth = size;
+                _spaceElement.preferredWidth = size;
             }
 
             _spaceElement.transform.SetSiblingIndex(0);
@@ -90,7 +95,11 @@ namespace PooledScrollList.Controller
                 ActiveElements.Add(top);
 
                 top.transform.SetSiblingIndex(ActiveElements[ActiveElements.Count - 2].transform.GetSiblingIndex() + 1);
-                top.Data = Data[elementsCulledAbove + ActiveElements.Count - 1];
+                var dataIndex = elementsCulledAbove + ActiveElements.Count - 1;
+                if (dataIndex >= 0 && dataIndex < Data.Count)
+                {
+                    top.Data = Data[dataIndex];
+                }
             }
             else
             {
@@ -99,14 +108,21 @@ namespace PooledScrollList.Controller
                 ActiveElements.Insert(0, bottom);
 
                 bottom.transform.SetSiblingIndex(ActiveElements[1].transform.GetSiblingIndex());
-                bottom.Data = Data[elementsCulledAbove];
+                var dataIndex = elementsCulledAbove;
+                if (dataIndex >= 0 && dataIndex < Data.Count)
+                {
+                    bottom.Data = Data[dataIndex];
+                }
             }
         }
 
         protected override void OnDestroy()
         {
             base.OnDestroy();
-            Destroy(_spaceElement.gameObject);
+            if (_spaceElement != null)
+            {
+                Destroy(_spaceElement.gameObject);
+            }
         }
     }
 }
