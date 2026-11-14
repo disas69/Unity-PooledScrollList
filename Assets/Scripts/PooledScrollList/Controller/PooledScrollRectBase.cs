@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using PooledScrollList.Data;
 using PooledScrollList.View;
 using UnityEngine;
@@ -31,6 +32,11 @@ namespace PooledScrollList.Controller
         public RectTransform ExternalViewPort;
         public PooledDataProvider DataProvider;
 
+        public int Count
+        {
+            get { return Data.Count; }
+        }
+
         protected int TotalElementsCount
         {
             get { return Data.Count; }
@@ -47,43 +53,120 @@ namespace PooledScrollList.Controller
         {
             LastElementsCulledAbove = -1;
             ResetPosition();
+            UpdateView();
+        }
+
+        public void UpdateView()
+        {
             UpdateContent();
             UpdateActiveElements();
         }
 
-        public void Add(PooledData item)
+        public void Add(PooledData item, bool updateView = true)
         {
             Data.Add(item);
-            UpdateContent();
-            UpdateActiveElements();
+            if (updateView)
+            {
+                UpdateView();
+            }
         }
 
-        public void Insert(int index, PooledData item)
+        public void AddRange(IEnumerable<PooledData> items, bool updateView = true)
+        {
+            Data.AddRange(items);
+            if (updateView)
+            {
+                UpdateView();
+            }
+        }
+
+        public void Insert(int index, PooledData item, bool updateView = true)
         {
             Data.Insert(index, item);
-            UpdateContent();
-            UpdateActiveElements();
+            if (updateView)
+            {
+                UpdateView();
+            }
         }
 
-        public void Remove(PooledData item)
+        public void InsertRange(int index, IEnumerable<PooledData> items, bool updateView = true)
+        {
+            Data.InsertRange(index, items);
+            if (updateView)
+            {
+                UpdateView();
+            }
+        }
+
+        public void Remove(PooledData item, bool updateView = true)
         {
             Data.Remove(item);
-            UpdateContent();
-            UpdateActiveElements();
+            if (Data.Count == 0)
+            {
+                Clear(updateView);
+                return;
+            }
+
+            if (updateView)
+            {
+                UpdateView();
+            }
         }
 
-        public void RemoveAt(int index)
+        public void RemoveAt(int index, bool updateView = true)
         {
             Data.RemoveAt(index);
-            UpdateContent();
-            UpdateActiveElements();
+            if (Data.Count == 0)
+            {
+                Clear(updateView);
+                return;
+            }
+
+            if (updateView)
+            {
+                UpdateView();
+            }
         }
 
-        public void Clear()
+        public void RemoveRange(int index, int count, bool updateView = true)
+        {
+            Data.RemoveRange(index, count);
+            if (Data.Count == 0)
+            {
+                Clear(updateView);
+                return;
+            }
+
+            if (updateView)
+            {
+                UpdateView();
+            }
+        }
+
+        public void RemoveAll(Predicate<PooledData> match, bool updateView = true)
+        {
+            Data.RemoveAll(match);
+            if (Data.Count == 0)
+            {
+                Clear(updateView);
+                return;
+            }
+
+            if (updateView)
+            {
+                UpdateView();
+            }
+        }
+
+        public void Clear(bool updateView = true)
         {
             Data.Clear();
-            UpdateContent();
-            UpdateActiveElements();
+            LastElementsCulledAbove = -1;
+            ResetPosition();
+            if (updateView)
+            {
+                UpdateView();
+            }
         }
 
         protected virtual void Awake()
@@ -114,10 +197,21 @@ namespace PooledScrollList.Controller
 
         protected virtual void UpdateActiveElements()
         {
+            if (LastElementsCulledAbove < 0)
+            {
+                return;
+            }
+
             for (var i = 0; i < ActiveElements.Count; i++)
             {
+                var dataIndex = LastElementsCulledAbove + i;
+                if (dataIndex >= Data.Count)
+                {
+                    break;
+                }
+
                 var activeElement = ActiveElements[i];
-                var activeData = Data[LastElementsCulledAbove + i];
+                var activeData = Data[dataIndex];
 
                 if (!activeElement.Data.Equals(activeData))
                 {
@@ -218,8 +312,7 @@ namespace PooledScrollList.Controller
 
         private void ScrollMoved(Vector2 delta)
         {
-            UpdateContent();
-            UpdateActiveElements();
+            UpdateView();
         }
 
         protected virtual void OnDestroy()
